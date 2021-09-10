@@ -70,11 +70,13 @@ namespace GUpOTeleBot
             {
                 var action = (message.Text.Split(' ').First()) switch
                 {
+                    "/start" => TextResponse(botClient, message, "Здравствуйте!\n\nНапишите ваш вопрос и мы ответим Вам в ближайшее время.\n Для отображения дерева введите /search"),
                     "/inline" => SendInlineKeyboard(botClient, message),
                     "/keyboard" => SendReplyKeyboard(botClient, message),
                     "/remove" => RemoveKeyboard(botClient, message),
                     "/photo" => SendFile(botClient, message),
                     "/request" => RequestContactAndLocation(botClient, message),
+                    "/search" => SendInlineKeyInfoTree(botClient, message),
                     _ => Usage(botClient, message)
                 };
                 var sentMessage = await action;
@@ -85,23 +87,33 @@ namespace GUpOTeleBot
                 var keys = keyWords.Split(", ");
                 foreach (var item in keys)
                 {
-                    int ks = 0, kn = 0;
+                    int ks = 0;
                     for (int i = 0; i < message.Text.Length; i++)
                     {
-                        if (message.Text[i] == item[0])
+                        if (message.Text.ToLower()[i] == item[0])
                         {
                             int aux = 0;
                             foreach (var c in item)
-                            {                               
-                                if (message.Text[i+aux] == c)
-                                {
-                                    ks++;
-                                }                                   
+                            {
+                                if (message.Text.Length > i + aux)
+                                    if (message.Text.ToLower()[i + aux++] == c)
+                                        ks++;
+                               
                             }
                         }
-                        else kn++;
                     }
-                }
+                    if(item.Length / ks > 0.8)
+                    {
+                        var action = (item) switch
+                        {
+                            "факультатив" => TextResponse(botClient, message, "Инфа о факультативах"),
+                            "шестой школьный день" => TextResponse(botClient, message, "Инфа о шестом школьном дне"),
+                            _ => Usage(botClient, message)
+                        };
+                        var sentMessage = await action;
+                        Console.WriteLine($"The message was sent with id: {sentMessage.MessageId}");
+                    }
+                    }
 
                 //var keys = keyWords.Split(", ");
                 //foreach (var item in keys)
@@ -113,8 +125,25 @@ namespace GUpOTeleBot
                 //}
             }
 
-               
 
+            static async Task<Message> SendInlineKeyInfoTree(ITelegramBotClient botClient, Message message)
+            {
+                await botClient.SendChatActionAsync(message.Chat.Id, ChatAction.Typing);
+
+                var inlineKeyboard = new InlineKeyboardMarkup(new[]
+                {
+                    // first row
+                    new []
+                    {
+                        InlineKeyboardButton.WithCallbackData("Аттестация", "12345"),
+                        InlineKeyboardButton.WithUrl("Сайт МОИРО", "https://moiro.by/"),
+                    },
+                });
+
+                return await botClient.SendTextMessageAsync(chatId: message.Chat.Id,
+                                                            text: "Выберите к какой теме относится Ваш вопрос?",
+                                                            replyMarkup: inlineKeyboard);
+            }
 
 
             static async Task<Message> TextResponse(ITelegramBotClient botClient, Message message, string lol)
@@ -224,13 +253,55 @@ namespace GUpOTeleBot
         // Process Inline Keyboard callback data
         private static async Task BotOnCallbackQueryReceived(ITelegramBotClient botClient, CallbackQuery callbackQuery)
         {
-            await botClient.AnswerCallbackQueryAsync(
-                callbackQueryId: callbackQuery.Id,
-                text: $"Received {callbackQuery.Data}");
 
-            await botClient.SendTextMessageAsync(
-                chatId: callbackQuery.Message.Chat.Id,
-                text: $"Received {callbackQuery.Data}");
+            Console.WriteLine(callbackQuery.Data);
+            var action = (callbackQuery.Data) switch
+            {
+                "12345" => SendInlineKeyInfoTree(botClient, callbackQuery.Message),
+                "/search" => SendInlineKeyInfoTree(botClient, callbackQuery.Message),
+                _ => botClient.SendTextMessageAsync(chatId: callbackQuery.Message.Chat.Id,
+                                                            text: "Nothing")
+            };
+            var sentMessage = await action;
+            Console.WriteLine($"The message was sent with id: {sentMessage.MessageId}");
+
+
+            static async Task<Message> SendInlineKeyInfoTree(ITelegramBotClient botClient, Message message)
+            {
+                await botClient.SendChatActionAsync(message.Chat.Id, ChatAction.Typing);
+
+                var inlineKeyboard = new InlineKeyboardMarkup(new[]
+                {
+                    // first row
+                    new []
+                    {
+                        InlineKeyboardButton.WithCallbackData("Нормативное\n\n и методичческое\n\n обеспечение", "1"),
+                    },
+                    new []
+                    {
+                        InlineKeyboardButton.WithCallbackData("Контакты методиста МОИРО для консультаций", "2"),
+                    },
+                    new []
+                    {                        
+                        InlineKeyboardButton.WithCallbackData("Примерные задания на экзамене", "3"),
+                    },
+                });
+
+                return await botClient.SendTextMessageAsync(chatId: message.Chat.Id,
+                                                            text: "Выберите к какой теме относится Ваш вопрос?",
+                                                            replyMarkup: inlineKeyboard);
+            }
+
+
+
+
+            //await botClient.AnswerCallbackQueryAsync(
+            //    callbackQueryId: callbackQuery.Id,
+            //    text: $"Received {callbackQuery.Data}");
+
+            //await botClient.SendTextMessageAsync(
+            //    chatId: callbackQuery.Message.Chat.Id,
+            //    text: $"Received {callbackQuery.Data}");
         }
 
         private static async Task BotOnInlineQueryReceived(ITelegramBotClient botClient, InlineQuery inlineQuery)
