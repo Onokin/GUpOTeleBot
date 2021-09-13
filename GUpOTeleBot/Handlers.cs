@@ -63,7 +63,7 @@ namespace GUpOTeleBot
             if (message.Type != MessageType.Text)
                 return;
 
-            const string keyWords = "факультатив, шестой школьный день";
+            const string keyWords = "факультатив|шестой школьный день";
 
 
             if (message.Text.TrimStart()[0] == '/')
@@ -84,36 +84,66 @@ namespace GUpOTeleBot
             }
             else
             {
-                var keys = keyWords.Split(", ");
+                var keys = keyWords.Split("|");
                 foreach (var item in keys)
                 {
-                    int ks = 0;
-                    for (int i = 0; i < message.Text.Length; i++)
+                    for (int i = 0; i <= message.Text.Length; i++)
                     {
-                        if (message.Text.ToLower()[i] == item[0])
+                        //Console.WriteLine($"{message.Text.Substring(i,item.Length)}: {item} {FuzzySearch.LevenshteinDistance(message.Text.Substring(i,item.Length), item)}");
+                        var compareStr = message.Text;
+                        var aux = 0;
+                        if (item.Length < compareStr.Length)
                         {
-                            int aux = 0;
-                            foreach (var c in item)
+                            compareStr = message.Text.Substring(i);
+                            if (compareStr.Length < item.Length)
+                                compareStr = compareStr.PadRight(item.Length - compareStr.Length, ' ');
+                            else
+                                compareStr = compareStr.Substring(0, item.Length);
+                        }
+                        aux = FuzzySearch.LevenshteinDistance(compareStr, item);
+                        if (aux < 6)
+                        {
+                            Console.WriteLine($"found in: {compareStr} | {item} | {aux}");
+                            var action = (item) switch
                             {
-                                if (message.Text.Length > i + aux)
-                                    if (message.Text.ToLower()[i + aux++] == c)
-                                        ks++;
-                               
-                            }
+                                "факультатив" => TextResponse(botClient, message, "Инфа о факультативах"),
+                                "шестой школьный день" => TextResponse(botClient, message, "Инфа о шестом школьном дне"),
+                                _ => Usage(botClient, message)
+                            };
+                            var sentMessage = await action;
+                            Console.WriteLine($"The message was sent with id: {sentMessage.MessageId}");
+                            break;
                         }
                     }
-                    if(item.Length / ks > 0.8)
-                    {
-                        var action = (item) switch
-                        {
-                            "факультатив" => TextResponse(botClient, message, "Инфа о факультативах"),
-                            "шестой школьный день" => TextResponse(botClient, message, "Инфа о шестом школьном дне"),
-                            _ => Usage(botClient, message)
-                        };
-                        var sentMessage = await action;
-                        Console.WriteLine($"The message was sent with id: {sentMessage.MessageId}");
-                    }
-                    }
+
+
+                    //int ks = 0;
+                    //for (int i = 0; i < message.Text.Length; i++)
+                    //{
+                    //    if (message.Text.ToLower()[i] == item[0])
+                    //    {
+                    //        int aux = 0;
+                    //        foreach (var c in item)
+                    //        {
+                    //            if (message.Text.Length > i + aux)
+                    //                if (message.Text.ToLower()[i + aux++] == c)
+                    //                    ks++;
+
+                    //        }
+                    //    }
+                    //}
+                    //if (item.Length / ks > 0.8)
+                    //{
+                    //    var action = (item) switch
+                    //    {
+                    //        "факультатив" => TextResponse(botClient, message, "Инфа о факультативах"),
+                    //        "шестой школьный день" => TextResponse(botClient, message, "Инфа о шестом школьном дне"),
+                    //        _ => Usage(botClient, message)
+                    //    };
+                    //    var sentMessage = await action;
+                    //    Console.WriteLine($"The message was sent with id: {sentMessage.MessageId}");
+                    //}
+                }
 
                 //var keys = keyWords.Split(", ");
                 //foreach (var item in keys)
